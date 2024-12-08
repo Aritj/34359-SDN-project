@@ -5,10 +5,9 @@
 sudo python network_topology.py
 ```
 
-## START ONOS
+## START ONOS (WINDOW 1)
 ```
-cd ~/onos
-bazel run onos-local -- clean
+cd ~/onos && bazel run onos-local -- clean
 ```
 
 ## ATTACH TO ONOS TERMINAL
