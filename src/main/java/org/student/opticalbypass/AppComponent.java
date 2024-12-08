@@ -1,6 +1,5 @@
 package org.student.opticalbypass;
 
-import javafx.util.Pair;
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
