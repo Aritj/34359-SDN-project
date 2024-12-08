@@ -1,16 +1,16 @@
 # 34359-SDN-project
 
-## START MININET
+## START MININET (WINDOW 1)
 ```
 sudo python network_topology.py
 ```
 
-## START ONOS (WINDOW 1)
+## START ONOS (WINDOW 2)
 ```
 cd ~/onos && bazel run onos-local -- clean
 ```
 
-## ATTACH TO ONOS TERMINAL
+## ATTACH TO ONOS TERMINAL (WINDOW 3)
 ```
 onos localhost
 ```
