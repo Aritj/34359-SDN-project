@@ -30,7 +30,7 @@
         <onos.version>2.1.0</onos.version>
         <onos.app.name>org.student.opticalbypass</onos.app.name>
         <onos.app.title>Optical Bypass (34359 SDN Project)</onos.app.title>
-        <onos.app.origin>Ari Torkilsson Johannesen</onos.app.origin>
+        <onos.app.origin>Ari Torkilsson Johannesen ( test )</onos.app.origin>
         <onos.app.category>default</onos.app.category>
         <onos.app.url>http://onosproject.org</onos.app.url>
         <onos.app.readme>ONOS OSGi bundle archetype.</onos.app.readme>

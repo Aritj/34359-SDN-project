@@ -55,8 +55,8 @@ public class AppComponent {
 
     @Activate
     protected void activate() {
-        appId = coreService.registerApplication("org.student.test");
-        packetService.addProcessor(processor, PacketProcessor.director(1));
+        appId = coreService.registerApplication("org.student.opticalbypass");
+        packetService.addProcessor(processor, PacketProcessor.director(2));
         hostService.addListener(hostListener);
         defineAclRules();
         log.info("Started {}", appId.id());
@@ -94,10 +94,8 @@ public class AppComponent {
     private class ReactivePacketProcessor implements PacketProcessor {
         @Override
         public void process(PacketContext context) {
-            log.info("Packet received");
 
             if (context.isHandled()) {
-                log.info("Context is handled");
                 return;
             }
 
@@ -117,9 +115,12 @@ public class AppComponent {
 
             DeviceId srcLeaf = srcHost.location().deviceId();
             DeviceId dstLeaf = dstHost.location().deviceId();
+            log.info("Processing packet: src MAC={}, dst MAC={}, src device={}, dst device={}",
+                    ethPkt.getSourceMAC(), ethPkt.getDestinationMAC(), srcLeaf, dstLeaf);
 
             // If hosts are on the same leaf, no need to process further
             if (srcLeaf.equals(dstLeaf)) {
+                log.info("Detected intra-leaf traffic on device {}", srcLeaf);
                 handleIntraLeafTraffic(context, srcHost, dstHost);
                 return;
             }

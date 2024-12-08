@@ -32,11 +32,11 @@ class OpticalBypassTopo:
                 self.net.addLink(host, leaf)
 
         # Electrical fabric connections are high latency, low bandwidth.
-        e_bw = 40  # electrical bandwidth
-        e_delay = "20ms"  # electrical delay
+        e_bw = 10  # electrical bandwidth
+        e_delay = "100ms"  # electrical delay
 
         # Optical bypass fabric connections are low latency, high bandwidth.
-        o_bw = 100  # optical bandwidth
+        o_bw = 1000  # optical bandwidth
         o_delay = "0.1ms"  # optical delay
 
         # Link each leaf switch to both spine switches
