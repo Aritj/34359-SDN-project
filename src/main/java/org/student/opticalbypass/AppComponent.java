@@ -113,8 +113,12 @@ public class AppComponent {
             DeviceId srcLeaf = srcHost.location().deviceId();
             DeviceId dstLeaf = dstHost.location().deviceId();
 
+            log.info("Processing packet: src MAC={}, dst MAC={}, src device={}, dst device={}",
+                    ethPkt.getSourceMAC(), ethPkt.getDestinationMAC(), srcLeaf, dstLeaf);
+
             // If hosts are on the same leaf, no need to process further
             if (srcLeaf.equals(dstLeaf)) {
+                log.info("Detected intra-leaf traffic on device {}", srcLeaf);
                 handleIntraLeafTraffic(context, srcHost, dstHost);
                 return;
             }
@@ -124,6 +128,8 @@ public class AppComponent {
     }
 
     private void handleIntraLeafTraffic(PacketContext context, Host srcHost, Host dstHost) {
+        log.info("Handling intra-leaf traffic - src port: {}, dst port: {}",
+                srcHost.location().port(), dstHost.location().port());
         TrafficSelector selector = DefaultTrafficSelector.builder()
                 .matchEthSrc(srcHost.mac())
                 .matchEthDst(dstHost.mac())
