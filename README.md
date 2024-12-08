@@ -2,7 +2,7 @@
 
 ## START MININET
 ```
-sudo python [file.py]
+sudo python network_topology.py
 ```
 
 ## START ONOS
