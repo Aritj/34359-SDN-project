@@ -2,7 +2,6 @@ package org.student.opticalbypass;
 
 import org.onlab.packet.Ethernet;
 import org.onlab.packet.IPv4;
-import org.onlab.packet.MacAddress;
 import org.onlab.packet.TCP;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -15,8 +14,10 @@ import org.osgi.service.component.annotations.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 @Component(immediate = true)
 public class OpticalBypassApp {
