@@ -18,6 +18,7 @@ import org.onosproject.net.packet.PacketService;
 import org.osgi.service.component.annotations.*;
 import org.slf4j.Logger;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -53,10 +54,13 @@ public class AppComponent {
     private final InternalHostListener hostListener = new InternalHostListener();
     private final ArrayList<TrafficSelector> aclRules = new ArrayList<>();
 
+    // Track occupied optical ports
+    private final Set<PortNumber> occupiedOpticalPorts = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
     @Activate
     protected void activate() {
         appId = coreService.registerApplication("org.student.opticalbypass");
-        packetService.addProcessor(processor, PacketProcessor.director(2));
+        packetService.addProcessor(processor, PacketProcessor.director(0));
         hostService.addListener(hostListener);
         defineAclRules();
         log.info("Started {}", appId.id());
@@ -67,6 +71,7 @@ public class AppComponent {
         flowRuleService.removeFlowRulesById(appId);
         packetService.removeProcessor(processor);
         hostService.removeListener(hostListener);
+        occupiedOpticalPorts.clear();
         log.info("Stopped {}", appId.id());
     }
 
@@ -82,50 +87,33 @@ public class AppComponent {
                 .matchIPProtocol(IPv4.PROTOCOL_TCP)
                 .matchTcpSrc(TpPort.tpPort(5001))
                 .build());
-        /*
-         * // Add ACL rules for ICMP traffic
-         * aclRules.add(DefaultTrafficSelector.builder()
-         * .matchEthType(Ethernet.TYPE_IPV4)
-         * .matchIPProtocol(IPv4.PROTOCOL_ICMP)
-         * .build());
-         */
     }
 
     private class ReactivePacketProcessor implements PacketProcessor {
         @Override
         public void process(PacketContext context) {
-
-            if (context.isHandled()) {
-                return;
-            }
+            if (context.isHandled()) return;
 
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
 
-            if (ethPkt == null)
-                return;
+            if (ethPkt == null) return;
 
-            // Get source and destination hosts
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
 
-            if (srcHost == null || dstHost == null) {
-                return;
-            }
+            if (srcHost == null || dstHost == null) return;
 
             DeviceId srcLeaf = srcHost.location().deviceId();
             DeviceId dstLeaf = dstHost.location().deviceId();
             log.info("Processing packet: src MAC={}, dst MAC={}, src device={}, dst device={}",
                     ethPkt.getSourceMAC(), ethPkt.getDestinationMAC(), srcLeaf, dstLeaf);
 
-            // If hosts are on the same leaf, no need to process further
             if (srcLeaf.equals(dstLeaf)) {
-                log.info("Detected intra-leaf traffic on device {}", srcLeaf);
                 handleIntraLeafTraffic(context, srcHost, dstHost);
-                return;
+            } else {
+                handleInterLeafTraffic(context, srcLeaf, dstLeaf);
             }
-
-            handleInterLeafTraffic(context, srcLeaf, dstLeaf);
         }
     }
 
@@ -320,16 +308,12 @@ public class AppComponent {
         Ethernet ethPkt = pkt.parsed();
 
         // Check if it's an IPv4 packet
-        if (ethPkt.getEtherType() != Ethernet.TYPE_IPV4) {
-            return false;
-        }
+        if (ethPkt.getEtherType() != Ethernet.TYPE_IPV4) return false;
 
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
 
         // Check if it's a TCP packet
-        if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP) {
-            return false;
-        }
+        if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP) return false;
 
         TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
 
@@ -356,15 +340,6 @@ public class AppComponent {
             }
         }
         return true;
-        /*
-         * return rule.criteria().stream().anyMatch(ruleCriterion -> {
-         * Criterion selectorCriterion = selector.getCriterion(ruleCriterion.type());
-         *
-         * // If the selector doesn't have this criterion or it doesn't match, return
-         * false
-         * return selectorCriterion != null && selectorCriterion.equals(ruleCriterion);
-         * });
-         */
     }
 
     private boolean isOpticalPathAvailable(DeviceId srcLeaf, DeviceId dstLeaf) {
