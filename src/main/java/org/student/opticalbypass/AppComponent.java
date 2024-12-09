@@ -92,7 +92,11 @@ public class AppComponent {
     private class ReactivePacketProcessor implements PacketProcessor {
         @Override
         public void process(PacketContext context) {
+            log.info("Optical Bypass received a packet.");
+            
             if (context.isHandled()) return;
+
+            log.info("Optical Bypass handling a packet.");
 
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
