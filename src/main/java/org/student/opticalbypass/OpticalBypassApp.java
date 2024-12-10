@@ -19,7 +19,7 @@ public class OpticalBypassApp {
     private static final Logger log = LoggerFactory.getLogger(OpticalBypassApp.class);
     private static final String APP_NAME = "org.student.opticalbypass";
 
-    private static final int FLOW_TIMEOUT = 5; // seconds
+    private static final int FLOW_TIMEOUT = 20; // seconds
     private static final DeviceId SPINE_ELECTRICAL = DeviceId.deviceId("of:0000000000000005");
     private static final DeviceId SPINE_OPTICAL = DeviceId.deviceId("of:0000000000000006");
 
