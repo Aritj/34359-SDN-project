@@ -1,17 +1,20 @@
 # 34359-SDN-project
 
+![image](https://github.com/user-attachments/assets/b50acd16-f57d-4db8-a156-f2a5ec3a80b3)
+
+
 ## BUILD PROJECT
 ```
 mvn clean install
 onos-app localhost install target/optical-bypass-1.0-SNAPSHOT.oar
 ```
 
-## START ONOS (WINDOW 1)
+## START CLEAN INSTANCE OF ONOS (WINDOW 1)
 ```
 cd ~/onos && bazel run onos-local -- clean
 ```
 
-## START MININET (WINDOW 2)
+## SIMULATE NETWORK TOPOLOGY USING MININET (WINDOW 2)
 ```
 sudo python optical_bypass.py
 mininet> h01 ping h02
@@ -38,4 +41,9 @@ onos> app activate org.student.opticalbypass
 ```
 onos> app uninstall org.student.opticalbypass
 onos> logout
+```
+
+## CLEANUP
+```
+sudo mn -c
 ```
