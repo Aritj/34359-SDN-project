@@ -25,24 +25,25 @@ class OpticalBypassTopo:
         e_spine = self.net.addSwitch('s5', protocols='OpenFlow13')
         o_spine = self.net.addSwitch('s6', protocols='OpenFlow13')
 
-        # Add hosts
-        for i, leaf in enumerate(leafs):
-            for j in range(1,5): # 4 per TOR
-                host = self.net.addHost('h{}{}'.format(i, j), ip='10.0.{}.{}'.format(i, j))
-                self.net.addLink(host, leaf)
 
         # Electrical fabric connections are high latency, low bandwidth.
         e_bw = 10  # electrical bandwidth
         e_delay = "100ms"  # electrical delay
 
         # Optical bypass fabric connections are low latency, high bandwidth.
-        o_bw = 1000  # optical bandwidth
-        o_delay = "0.1ms"  # optical delay
+        o_bw = 10000  # optical bandwidth
+        o_delay = "0.01ms"  # optical delay
 
         # Link each leaf switch to both spine switches
-        for leaf in leafs:
+        for i, leaf in enumerate(leafs):
             self.net.addLink(leaf, e_spine, bw=e_bw, delay=e_delay)
             self.net.addLink(leaf, o_spine, bw=o_bw, delay=o_delay)
+            
+            # Add hosts
+            for j in range(1,5):
+                host = self.net.addHost('h{}{}'.format(i, j), ip='10.0.{}.{}'.format(i, j))
+                self.net.addLink(host, leaf)
+
 
     def start(self):
         self.net.build()
