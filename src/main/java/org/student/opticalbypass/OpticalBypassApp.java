@@ -71,18 +71,21 @@ public class OpticalBypassApp {
     private class OpticalBypassPacketProcessor implements PacketProcessor {
         @Override
         public void process(PacketContext context) {
-            if (context.isHandled()) return;
+            if (context.isHandled())
+                return;
 
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
 
-            if (ethPkt == null) return;
+            if (ethPkt == null)
+                return;
 
             // Get source and destination hosts
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
 
-            if (srcHost == null || dstHost == null) return;
+            if (srcHost == null || dstHost == null)
+                return;
 
             DeviceId srcLeaf = srcHost.location().deviceId();
             DeviceId dstLeaf = dstHost.location().deviceId();
@@ -95,7 +98,7 @@ public class OpticalBypassApp {
         }
 
         private void handleIntraLeafTraffic(PacketContext context, Host srcHost, Host dstHost) {
-            log.info("Processing intra-leaf traffic between {} and {}, connected via deviceId={}",
+            log.info("Processing intra-leaf traffic: src MAC={}, dst MAC={}, leaf deviceId={}",
                     srcHost.mac(), dstHost.mac(), srcHost.location().deviceId());
 
             TrafficSelector selector = DefaultTrafficSelector.builder()
@@ -116,22 +119,30 @@ public class OpticalBypassApp {
                     .build();
 
             flowRuleService.applyFlowRules(flowRule);
+
             context.treatmentBuilder().setOutput(dstHost.location().port());
             context.send();
         }
 
-        private void HandleInterLeafTraffic(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf) {
+        private void HandleInterLeafTraffic(
+                PacketContext context,
+                DeviceId srcLeaf,
+                DeviceId dstLeaf) {
+            log.info("Processing inter-leaf traffic: src leaf={}, dst leaf={}",
+                    srcLeaf, dstLeaf);
+
             if (isEligibleForOpticalPath(context) && isOpticalPathAvailable(srcLeaf, dstLeaf)) {
-                log.info("Optical spine inter-leaf traffic between srcLeaf={} and dstLeaf={}", srcLeaf, dstLeaf);
+                log.info("Routing via Optical Spine");
                 routeViaSpine(context, srcLeaf, dstLeaf, SPINE_OPTICAL, PRIORITY_OPTICAL);
             } else {
-                log.info("Electrical spine inter-leaf traffic between srcLeaf={} and dstLeaf={}", srcLeaf, dstLeaf);
+                log.info("Routing via Electrical Spine");
                 routeViaSpine(context, srcLeaf, dstLeaf, SPINE_ELECTRICAL, PRIORITY_ELECTRICAL);
             }
         }
     }
 
-    private void routeViaSpine(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf, DeviceId spineDeviceId, int priority) {
+    private void routeViaSpine(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf, DeviceId spineDeviceId,
+            int priority) {
         InboundPacket pkt = context.inPacket();
         Ethernet ethPkt = pkt.parsed();
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
@@ -140,7 +151,7 @@ public class OpticalBypassApp {
         PortNumber srcLeafUplink = getConnectingPort(srcLeaf, spineDeviceId);
         PortNumber spineToDestPort = getConnectingPort(spineDeviceId, dstLeaf);
         PortNumber dstLeafDownlink = getHostFacingPort(dstLeaf, IpAddress.valueOf(ipv4Pkt.getDestinationAddress()));
-        
+
         PortNumber dstLeafUplink = getConnectingPort(dstLeaf, spineDeviceId);
         PortNumber spineToSrcPort = getConnectingPort(spineDeviceId, srcLeaf);
         PortNumber srcLeafDownlink = getHostFacingPort(srcLeaf, IpAddress.valueOf(ipv4Pkt.getSourceAddress()));
@@ -178,6 +189,30 @@ public class OpticalBypassApp {
                         .matchIPProtocol(IPv4.PROTOCOL_TCP)
                         .matchTcpSrc(TpPort.tpPort(tcpPkt.getDestinationPort()))
                         .matchTcpDst(TpPort.tpPort(tcpPkt.getSourcePort()))
+                        .build();
+                break;
+
+            case IPv4.PROTOCOL_UDP: // Protocol number 17 for UDP
+                UDP udpPkt = (UDP) ipv4Pkt.getPayload();
+                forwardSelector = DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchEthSrc(ethPkt.getSourceMAC())
+                        .matchEthDst(ethPkt.getDestinationMAC())
+                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
+                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
+                        .matchIPProtocol(IPv4.PROTOCOL_UDP)
+                        .matchUdpSrc(TpPort.tpPort(udpPkt.getSourcePort()))
+                        .matchUdpDst(TpPort.tpPort(udpPkt.getDestinationPort()))
+                        .build();
+                reverseSelector = DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchEthSrc(ethPkt.getDestinationMAC())
+                        .matchEthDst(ethPkt.getSourceMAC())
+                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
+                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
+                        .matchIPProtocol(IPv4.PROTOCOL_UDP)
+                        .matchUdpSrc(TpPort.tpPort(udpPkt.getDestinationPort()))
+                        .matchUdpDst(TpPort.tpPort(udpPkt.getSourcePort()))
                         .build();
                 break;
 
@@ -310,12 +345,14 @@ public class OpticalBypassApp {
         Ethernet ethPkt = pkt.parsed();
 
         // Check if it's an IPv4 packet
-        if (ethPkt.getEtherType() != Ethernet.TYPE_IPV4) return false;
+        if (ethPkt.getEtherType() != Ethernet.TYPE_IPV4)
+            return false;
 
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
 
         // Check if it's a TCP packet
-        if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP) return false;
+        if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP)
+            return false;
 
         TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
 

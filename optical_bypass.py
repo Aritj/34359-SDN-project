@@ -31,14 +31,14 @@ class OpticalBypassTopo:
         e_delay = "100ms"  # electrical delay
 
         # Optical bypass fabric connections are low latency, high bandwidth.
-        o_bw = 10000  # optical bandwidth
+        o_bw = 1000  # optical bandwidth
         o_delay = "0.01ms"  # optical delay
 
         # Link each leaf switch to both spine switches
         for i, leaf in enumerate(leafs):
             self.net.addLink(leaf, e_spine, bw=e_bw, delay=e_delay)
             self.net.addLink(leaf, o_spine, bw=o_bw, delay=o_delay)
-            
+
             # Add hosts
             for j in range(1,5):
                 host = self.net.addHost('h{}{}'.format(i, j), ip='10.0.{}.{}'.format(i, j))
