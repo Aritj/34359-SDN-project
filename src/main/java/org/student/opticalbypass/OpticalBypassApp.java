@@ -1,7 +1,5 @@
 package org.student.opticalbypass;
 
-import javax.annotation.Nullable;
-
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -300,7 +298,6 @@ public class OpticalBypassApp {
         return null;
     }
 
-    @Nullable
     private PortNumber getHostFacingPort(DeviceId leafId, IpAddress hostIp) {
         return hostService.getHostsByIp(hostIp).stream()
                 .filter(host -> host.location().deviceId().equals(leafId))
