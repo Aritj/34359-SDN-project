@@ -84,9 +84,13 @@ public class OpticalBypassApp {
             // Parse ethernet packet
             Ethernet ethPkt = context.inPacket().parsed();
 
+            if (ethPkt == null) return;
+
             // Get source and destination hosts
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
+
+            if (srcHost == null || dstHost == null) return;
 
             // Get source and destination leaf(s)
             DeviceId srcLeaf = srcHost.location().deviceId();
