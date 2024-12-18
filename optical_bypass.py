@@ -13,7 +13,7 @@ def main(leaf_switch_count = 4, hosts_per_leaf_count = 4):
     net = Mininet(controller=RemoteController, switch=OVSSwitch, link=TCLink)
 
     # Add ONOS controller
-    controller = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6633)
+    controller = net.addController('c0', controller=RemoteController, ip='127.0.0.1', port=6653)
 
     # Define leaf-spine fabric connection parameters
     electrical_params = {'bw': 10, 'delay': "100ms"} # High latency, low bandwidth
