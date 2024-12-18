@@ -1,9 +1,12 @@
 package org.student.opticalbypass;
 
+import javax.annotation.Nullable;
+
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.*;
+import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.*;
 import org.onosproject.net.flow.instructions.Instruction;
 import org.onosproject.net.flow.instructions.Instructions;
@@ -16,16 +19,13 @@ import org.slf4j.LoggerFactory;
 
 @Component(immediate = true)
 public class OpticalBypassApp {
-    private static final Logger log = LoggerFactory.getLogger(OpticalBypassApp.class);
-    private static final String APP_NAME = "org.student.opticalbypass";
-
-    private static final int FLOW_TIMEOUT = 20; // seconds
-    private static final DeviceId SPINE_ELECTRICAL = DeviceId.deviceId("of:0000000000000005");
-    private static final DeviceId SPINE_OPTICAL = DeviceId.deviceId("of:0000000000000006");
-
-    private static final int PRIORITY_LOCAL = 30000;
-    private static final int PRIORITY_OPTICAL = 20000;
-    private static final int PRIORITY_ELECTRICAL = 10000;
+    private final PacketProcessor packetProcessor = new OpticalBypassPacketProcessor();
+    private final Logger log = LoggerFactory.getLogger(OpticalBypassApp.class);
+    private final String APP_NAME = "org.student.opticalbypass";
+    private final int FLOW_TIMEOUT = 20; // seconds
+    private final int PRIORITY_LOCAL = 30;
+    private final int PRIORITY_OPTICAL = 20;
+    private final int PRIORITY_ELECTRICAL = 10;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
@@ -42,12 +42,20 @@ public class OpticalBypassApp {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected LinkService linkService;
 
+    @Reference(cardinality = ReferenceCardinality.MANDATORY)
+    protected DeviceService deviceService;
+
     private ApplicationId appId;
-    private final PacketProcessor packetProcessor = new OpticalBypassPacketProcessor();
+    private DeviceId SPINE_ELECTRICAL;
+    private DeviceId SPINE_OPTICAL;
 
     @Activate
     protected void activate() {
         appId = coreService.registerApplication(APP_NAME);
+        int deviceCount = deviceService.getDeviceCount();
+        SPINE_ELECTRICAL = DeviceId.deviceId(String.format("of:%016x", deviceCount-1));
+        SPINE_OPTICAL = DeviceId.deviceId(String.format("of:%016x", deviceCount));
+
         packetService.addProcessor(packetProcessor, PacketProcessor.director(2));
 
         // Request IPv4 packets
@@ -58,6 +66,8 @@ public class OpticalBypassApp {
                 PacketPriority.REACTIVE,
                 appId);
 
+        log.info("ELECTRICAL SPINE ID {}", SPINE_ELECTRICAL);
+        log.info("OPTICAL SPINE ID {}", SPINE_OPTICAL);
         log.info("Started {}", APP_NAME);
     }
 
@@ -73,17 +83,14 @@ public class OpticalBypassApp {
         public void process(PacketContext context) {
             if (context.isHandled()) return;
 
-            InboundPacket pkt = context.inPacket();
-            Ethernet ethPkt = pkt.parsed();
-
-            if (ethPkt == null) return;
+            // Parse ethernet packet
+            Ethernet ethPkt = context.inPacket().parsed();
 
             // Get source and destination hosts
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
 
-            if (srcHost == null || dstHost == null) return;
-
+            // Get source and destination leaf(s)
             DeviceId srcLeaf = srcHost.location().deviceId();
             DeviceId dstLeaf = dstHost.location().deviceId();
 
@@ -135,8 +142,8 @@ public class OpticalBypassApp {
 
     private void routeViaSpine(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf, DeviceId spineDeviceId,
             int priority) {
-        InboundPacket pkt = context.inPacket();
-        Ethernet ethPkt = pkt.parsed();
+        // Parse Ethernet frame and payload (IPv4 packet)
+        Ethernet ethPkt = context.inPacket().parsed();
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
 
         // Get the ports in the circuit
@@ -293,6 +300,7 @@ public class OpticalBypassApp {
         return null;
     }
 
+    @Nullable
     private PortNumber getHostFacingPort(DeviceId leafId, IpAddress hostIp) {
         return hostService.getHostsByIp(hostIp).stream()
                 .filter(host -> host.location().deviceId().equals(leafId))
