@@ -19,11 +19,17 @@ import org.slf4j.LoggerFactory;
 public class OpticalBypassApp {
     private final PacketProcessor packetProcessor = new OpticalBypassPacketProcessor();
     private final Logger log = LoggerFactory.getLogger(OpticalBypassApp.class);
+    
     private final String APP_NAME = "org.student.opticalbypass";
     private final int FLOW_TIMEOUT = 20; // seconds
     private final int PRIORITY_LOCAL = 30;
     private final int PRIORITY_OPTICAL = 20;
     private final int PRIORITY_ELECTRICAL = 10;
+
+    private ApplicationId appId;
+    private DeviceId SPINE_ELECTRICAL;
+    private DeviceId SPINE_OPTICAL;
+
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected CoreService coreService;
@@ -43,10 +49,6 @@ public class OpticalBypassApp {
     @Reference(cardinality = ReferenceCardinality.MANDATORY)
     protected DeviceService deviceService;
 
-    private ApplicationId appId;
-    private DeviceId SPINE_ELECTRICAL;
-    private DeviceId SPINE_OPTICAL;
-
     @Activate
     protected void activate() {
         appId = coreService.registerApplication(APP_NAME);
@@ -63,17 +65,12 @@ public class OpticalBypassApp {
                         .build(),
                 PacketPriority.REACTIVE,
                 appId);
-
-        log.info("ELECTRICAL SPINE ID {}", SPINE_ELECTRICAL);
-        log.info("OPTICAL SPINE ID {}", SPINE_OPTICAL);
-        log.info("Started {}", APP_NAME);
     }
 
     @Deactivate
     protected void deactivate() {
         packetService.removeProcessor(packetProcessor);
         flowRuleService.removeFlowRulesById(appId);
-        log.info("Stopped {}", APP_NAME);
     }
 
     private class OpticalBypassPacketProcessor implements PacketProcessor {
@@ -104,9 +101,6 @@ public class OpticalBypassApp {
         }
 
         private void handleIntraLeafTraffic(PacketContext context, Host srcHost, Host dstHost) {
-            log.info("Processing intra-leaf traffic: src MAC={}, dst MAC={}, leaf deviceId={}",
-                    srcHost.mac(), dstHost.mac(), srcHost.location().deviceId());
-
             TrafficSelector selector = DefaultTrafficSelector.builder()
                     .matchInPort(srcHost.location().port())
                     .matchEthSrc(srcHost.mac())
@@ -130,20 +124,15 @@ public class OpticalBypassApp {
         }
 
         private void HandleInterLeafTraffic(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf) {
-            log.info("Processing inter-leaf traffic: src leaf={}, dst leaf={}", srcLeaf, dstLeaf);
-
             if (isEligibleForOpticalPath(context) && isOpticalPathAvailable(srcLeaf, dstLeaf)) {
-                log.info("Routing via Optical Spine");
                 routeViaSpine(context, srcLeaf, dstLeaf, SPINE_OPTICAL, PRIORITY_OPTICAL);
             } else {
-                log.info("Routing via Electrical Spine");
                 routeViaSpine(context, srcLeaf, dstLeaf, SPINE_ELECTRICAL, PRIORITY_ELECTRICAL);
             }
         }
     }
 
-    private void routeViaSpine(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf, DeviceId spineDeviceId,
-            int priority) {
+    private void routeViaSpine(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf, DeviceId spineDeviceId, int priority) {
         // Parse Ethernet frame and payload (IPv4 packet)
         Ethernet ethPkt = context.inPacket().parsed();
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
@@ -206,7 +195,7 @@ public class OpticalBypassApp {
                 break;
         }
 
-        // Create port-based treatments for forward and reverse paths
+        // Create port-based treatments for forward paths
         TrafficTreatment forwardTreatmentSrcLeaf = DefaultTrafficTreatment.builder()
                 .setOutput(srcLeafUplink)
                 .build();
@@ -217,6 +206,7 @@ public class OpticalBypassApp {
                 .setOutput(dstLeafDownlink)
                 .build();
 
+        // Create port-based treatments for reverse paths
         TrafficTreatment reverseTreatmentDstLeaf = DefaultTrafficTreatment.builder()
                 .setOutput(dstLeafUplink)
                 .build();
@@ -329,8 +319,6 @@ public class OpticalBypassApp {
     }
 
     private boolean isOpticalPathAvailable(DeviceId srcLeaf, DeviceId dstLeaf) {
-        log.info("Checking optical path availability: srcLeaf={}, dstLeaf={}", srcLeaf, dstLeaf);
-
         // Get the connecting ports
         PortNumber spineToSrcPort = getConnectingPort(SPINE_OPTICAL, srcLeaf);
         PortNumber spineToDstPort = getConnectingPort(SPINE_OPTICAL, dstLeaf);
@@ -350,7 +338,6 @@ public class OpticalBypassApp {
 
                     // Check if the port is already in use
                     if (outputPort.equals(spineToSrcPort) || outputPort.equals(spineToDstPort)) {
-                        log.warn("Port is already in use by another flow. Path is not available.");
                         return false;
                     }
                 }
@@ -358,7 +345,6 @@ public class OpticalBypassApp {
         }
 
         // If no conflicting ports are found, the path is available
-        log.info("Optical path is available.");
         return true;
     }
 }
