@@ -18,6 +18,7 @@ def main(leaf_switch_count = 4, hosts_per_leaf_count = 4):
     # Define leaf-spine fabric connection parameters
     electrical_params = {'bw': 10, 'delay': "100ms"} # High latency, low bandwidth
     optical_params = {'bw': 1000, 'delay': "0.01ms"} # Low latency, high bandwidth
+    host_params = {} # Undefined
     
     # Create spine switches
     e_spine = net.addSwitch('s{}'.format(leaf_switch_count+1), protocols='OpenFlow13')
@@ -35,7 +36,7 @@ def main(leaf_switch_count = 4, hosts_per_leaf_count = 4):
             host_ip = '10.0.{}.{}'.format(leaf_index, host_index)
             host = net.addHost(host_name, ip=host_ip)
             
-            net.addLink(host, leaf)
+            net.addLink(host, leaf, **host_params)
 
     # Start the network
     net.build()
