@@ -27,9 +27,7 @@ def main(leaf_switch_count = 4, hosts_per_leaf_count = 4):
     # Create and link each leaf switch to both spine switches
     for leaf_index in range(1, leaf_switch_count):
         leaf = net.addSwitch('s{}'.format(leaf_index), protocols='OpenFlow13')
-        net.addLink(leaf, e_spine, **electrical_params)
-        net.addLink(leaf, o_spine, **optical_params)
-
+        
         # Add hosts
         for host_index in range(1, hosts_per_leaf_count + 1):
             host_name = 'h{}{}'.format(leaf_index, host_index)
@@ -37,6 +35,10 @@ def main(leaf_switch_count = 4, hosts_per_leaf_count = 4):
             host = net.addHost(host_name, ip=host_ip)
             
             net.addLink(host, leaf, **host_params)
+            
+        net.addLink(leaf, e_spine, **electrical_params)
+        net.addLink(leaf, o_spine, **optical_params)
+
 
     # Start the network
     net.build()
