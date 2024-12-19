@@ -12,13 +12,10 @@ import org.onosproject.net.host.HostService;
 import org.onosproject.net.link.LinkService;
 import org.onosproject.net.packet.*;
 import org.osgi.service.component.annotations.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Component(immediate = true)
 public class OpticalBypassApp {
     private final PacketProcessor packetProcessor = new OpticalBypassPacketProcessor();
-    private final Logger log = LoggerFactory.getLogger(OpticalBypassApp.class);
     
     private final String APP_NAME = "org.student.opticalbypass";
     private final int FLOW_TIMEOUT = 20; // seconds
