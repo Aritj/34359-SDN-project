@@ -143,6 +143,8 @@ public class OpticalBypassApp {
         PortNumber spineToSrcPort = getConnectingPort(spineDeviceId, srcLeaf);
         PortNumber srcLeafDownlink = getHostFacingPort(srcLeaf, IpAddress.valueOf(ipv4Pkt.getSourceAddress()));
 
+        // Important!: Selectors need to be able to differentiate flows matching optical criteria
+        // E.g. if isEligibleForOpticalPath should use 5001/UDP, a UDP match case needs to be added here!
         TrafficSelector forwardSelector = createForwardSelector(ethPkt, ipv4Pkt);
         TrafficSelector reverseSelector = createReverseSelector(ethPkt, ipv4Pkt);
 
