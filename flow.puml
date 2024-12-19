@@ -1,0 +1,43 @@
+@startuml flow
+start
+:Packet arrives at application;
+if (Packet is ARP?) then (Yes)
+    :Let proxyarp handle the packet;
+    stop
+else (No)
+    :Parse Ethernet packet;
+    if (Packet is null?) then (Yes)
+        :Drop the packet;
+        stop
+    endif
+
+    :Resolve Source and Destination Hosts;
+    if (Hosts are null?) then (Yes)
+        :Defer processing until ARP resolves;
+        stop
+    endif
+
+    :Identify Source and Destination Leafs;
+    if (Source Leaf == Destination Leaf?) then (Yes)
+        :Handle Intra-Leaf Traffic;
+        :Install Intra-Leaf Flow Rule;
+    else (No)
+        if (Eligible for Optical Path?) then (Yes)
+            :Check Optical Path Availability;
+            if (Path Available?) then (Yes)
+                :Route via Optical Spine;
+                :Install Optical Flow Rules;
+            else (No)
+                :Route via Electrical Spine;
+                :Install Electrical Flow Rules;
+            endif
+        else (No)
+            :Route via Electrical Spine;
+            :Install Electrical Flow Rules;
+        endif
+    endif
+endif
+
+:Send Packet on the Forward Path;
+stop
+@enduml

@@ -1,0 +1,102 @@
+@startuml classes
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Serif
+
+package "org.student.opticalbypass" {
+
+    class OpticalBypassApp {
+        + activate(): void
+        + deactivate(): void
+        + routeViaSpine(PacketContext, DeviceId, DeviceId, DeviceId, int): void
+        + createForwardSelector(Ethernet, IPv4): TrafficSelector
+        + createReverseSelector(Ethernet, IPv4): TrafficSelector
+        + getConnectingPort(DeviceId, DeviceId): PortNumber
+        + getHostFacingPort(DeviceId, IpAddress): PortNumber
+        + isEligibleForOpticalPath(PacketContext): boolean
+        + isOpticalPathAvailable(DeviceId, DeviceId): boolean
+    }
+
+    class OpticalBypassPacketProcessor {
+        + process(PacketContext): void
+        - handleIntraLeafTraffic(PacketContext, Host, Host): void
+        - HandleInterLeafTraffic(PacketContext, DeviceId, DeviceId): void
+    }
+
+    OpticalBypassApp --> "1" OpticalBypassPacketProcessor
+
+    interface PacketProcessor {
+        + process(PacketContext): void
+    }
+
+    OpticalBypassPacketProcessor ..|> PacketProcessor
+
+    interface CoreService {
+        + registerApplication(String): ApplicationId
+    }
+
+    interface PacketService {
+        + addProcessor(PacketProcessor, int): void
+        + removeProcessor(PacketProcessor): void
+    }
+
+    interface FlowRuleService {
+        + applyFlowRules(FlowRule...): void
+        + removeFlowRulesById(ApplicationId): void
+    }
+
+    interface HostService {
+        + getHost(HostId): Host
+        + getHostsByIp(IpAddress): Set<Host>
+    }
+
+    interface LinkService {
+        + getDeviceLinks(DeviceId): Iterable<Link>
+    }
+
+    interface DeviceService {
+        + getDeviceCount(): int
+    }
+
+    OpticalBypassApp --> CoreService
+    OpticalBypassApp --> PacketService
+    OpticalBypassApp --> FlowRuleService
+    OpticalBypassApp --> HostService
+    OpticalBypassApp --> LinkService
+    OpticalBypassApp --> DeviceService
+
+    class Host {
+        + location(): HostLocation
+        + mac(): MacAddress
+    }
+
+    class PacketContext {
+        + inPacket(): InboundPacket
+        + treatmentBuilder(): TrafficTreatment.Builder
+        + send(): void
+    }
+
+    OpticalBypassPacketProcessor --> PacketContext
+    OpticalBypassPacketProcessor --> Host
+
+    class TrafficSelector
+    class TrafficTreatment
+    class FlowRule
+    class Link
+    class PortNumber
+    class DeviceId
+    class IpAddress
+    class Ethernet
+    class IPv4
+
+    TrafficSelector <.. OpticalBypassApp
+    TrafficTreatment <.. OpticalBypassApp
+    FlowRule <.. OpticalBypassApp
+    Link <.. OpticalBypassApp
+    PortNumber <.. OpticalBypassApp
+    DeviceId <.. OpticalBypassApp
+    IpAddress <.. OpticalBypassApp
+    Ethernet <.. OpticalBypassApp
+    IPv4 <.. OpticalBypassApp
+}
+
+@enduml

@@ -60,11 +60,11 @@ public class OpticalBypassApp {
 
         // Request IPv4 packets
         packetService.requestPackets(
-                DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .build(),
-                PacketPriority.REACTIVE,
-                appId);
+            DefaultTrafficSelector.builder()
+                .matchEthType(Ethernet.TYPE_IPV4)
+                .build(),
+            PacketPriority.REACTIVE,
+            appId);
     }
 
     @Deactivate
@@ -146,54 +146,8 @@ public class OpticalBypassApp {
         PortNumber spineToSrcPort = getConnectingPort(spineDeviceId, srcLeaf);
         PortNumber srcLeafDownlink = getHostFacingPort(srcLeaf, IpAddress.valueOf(ipv4Pkt.getSourceAddress()));
 
-        TrafficSelector forwardSelector;
-        TrafficSelector reverseSelector;
-
-        // Match the appropriate protocol and fields for forward and reverse flows
-        switch (ipv4Pkt.getProtocol()) {
-            case IPv4.PROTOCOL_TCP: // Protocol number 6 for TCP
-                TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
-                forwardSelector = DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .matchEthSrc(ethPkt.getSourceMAC())
-                        .matchEthDst(ethPkt.getDestinationMAC())
-                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
-                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
-                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                        .matchTcpSrc(TpPort.tpPort(tcpPkt.getSourcePort()))
-                        .matchTcpDst(TpPort.tpPort(tcpPkt.getDestinationPort()))
-                        .build();
-                reverseSelector = DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .matchEthSrc(ethPkt.getDestinationMAC())
-                        .matchEthDst(ethPkt.getSourceMAC())
-                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
-                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
-                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                        .matchTcpSrc(TpPort.tpPort(tcpPkt.getDestinationPort()))
-                        .matchTcpDst(TpPort.tpPort(tcpPkt.getSourcePort()))
-                        .build();
-                break;
-
-            default:
-                forwardSelector = DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .matchEthSrc(ethPkt.getSourceMAC())
-                        .matchEthDst(ethPkt.getDestinationMAC())
-                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
-                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
-                        .matchIPProtocol(ipv4Pkt.getProtocol())
-                        .build();
-                reverseSelector = DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .matchEthSrc(ethPkt.getDestinationMAC())
-                        .matchEthDst(ethPkt.getSourceMAC())
-                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
-                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
-                        .matchIPProtocol(ipv4Pkt.getProtocol())
-                        .build();
-                break;
-        }
+        TrafficSelector forwardSelector = createForwardSelector(ethPkt, ipv4Pkt);
+        TrafficSelector reverseSelector = createReverseSelector(ethPkt, ipv4Pkt);
 
         // Create port-based treatments for forward paths
         TrafficTreatment forwardTreatmentSrcLeaf = DefaultTrafficTreatment.builder()
@@ -278,18 +232,67 @@ public class OpticalBypassApp {
         context.send();
     }
 
-    private PortNumber getConnectingPort(DeviceId a, DeviceId b) {
-        Iterable<Link> links = linkService.getLinks();
+    private TrafficSelector createForwardSelector(Ethernet ethPkt, IPv4 ipv4Pkt) {
+        switch (ipv4Pkt.getProtocol()) {
+            case IPv4.PROTOCOL_TCP:
+                TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
+                return DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchEthSrc(ethPkt.getSourceMAC())
+                        .matchEthDst(ethPkt.getDestinationMAC())
+                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
+                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
+                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                        .matchTcpSrc(TpPort.tpPort(tcpPkt.getSourcePort()))
+                        .matchTcpDst(TpPort.tpPort(tcpPkt.getDestinationPort()))
+                        .build();
+            default:
+                return DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchEthSrc(ethPkt.getSourceMAC())
+                        .matchEthDst(ethPkt.getDestinationMAC())
+                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
+                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
+                        .matchIPProtocol(ipv4Pkt.getProtocol())
+                        .build();
+        }
+    }
+    
+    private TrafficSelector createReverseSelector(Ethernet ethPkt, IPv4 ipv4Pkt) {
+        switch (ipv4Pkt.getProtocol()) {
+            case IPv4.PROTOCOL_TCP:
+                TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
+                return DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchEthSrc(ethPkt.getDestinationMAC())
+                        .matchEthDst(ethPkt.getSourceMAC())
+                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
+                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
+                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                        .matchTcpSrc(TpPort.tpPort(tcpPkt.getDestinationPort()))
+                        .matchTcpDst(TpPort.tpPort(tcpPkt.getSourcePort()))
+                        .build();
+            default:
+                return DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchEthSrc(ethPkt.getDestinationMAC())
+                        .matchEthDst(ethPkt.getSourceMAC())
+                        .matchIPSrc(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getDestinationAddress()), 32))
+                        .matchIPDst(IpPrefix.valueOf(IpAddress.valueOf(ipv4Pkt.getSourceAddress()), 32))
+                        .matchIPProtocol(ipv4Pkt.getProtocol())
+                        .build();
+        }
+    }
 
-        for (Link link : links) {
-            DeviceId src = link.src().deviceId();
-            DeviceId dst = link.dst().deviceId();
+    private PortNumber getConnectingPort(DeviceId srcDeviceId, DeviceId dstDeviceId) {
+        for (Link link : linkService.getDeviceLinks(srcDeviceId)) {
 
-            if (src.equals(a) && dst.equals(b)) {
-                return link.src().port();
+            if (link.dst().deviceId().equals(dstDeviceId)) {
+                return link.src().port(); // Return the source port of the link
             }
         }
-        return null;
+
+        return null; // Return null if no link is found
     }
 
     private PortNumber getHostFacingPort(DeviceId leafId, IpAddress hostIp) {
@@ -303,10 +306,6 @@ public class OpticalBypassApp {
     private boolean isEligibleForOpticalPath(PacketContext context) {
         InboundPacket pkt = context.inPacket();
         Ethernet ethPkt = pkt.parsed();
-
-        // Check if it's an IPv4 packet
-        if (ethPkt.getEtherType() != Ethernet.TYPE_IPV4) return false;
-
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
 
         // Check if it's a TCP packet
@@ -323,13 +322,8 @@ public class OpticalBypassApp {
         PortNumber spineToSrcPort = getConnectingPort(SPINE_OPTICAL, srcLeaf);
         PortNumber spineToDstPort = getConnectingPort(SPINE_OPTICAL, dstLeaf);
 
-        // Ensure all ports are identified
-        if (spineToSrcPort == null || spineToDstPort == null) return false;
-
         // Check if these ports are already in use by any existing flows
-        Iterable<FlowEntry> flows = flowRuleService.getFlowEntries(SPINE_OPTICAL);
-
-        for (FlowEntry flow : flows) {
+        for (FlowEntry flow : flowRuleService.getFlowEntries(SPINE_OPTICAL)) {
             TrafficTreatment treatment = flow.treatment();
 
             for (Instruction instruction : treatment.allInstructions()) {
