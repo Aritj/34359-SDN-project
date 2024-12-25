@@ -6,12 +6,13 @@ import org.onosproject.core.CoreService;
 import org.onosproject.net.*;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.*;
-import org.onosproject.net.flow.instructions.Instruction;
 import org.onosproject.net.flow.instructions.Instructions;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.link.LinkService;
 import org.onosproject.net.packet.*;
 import org.osgi.service.component.annotations.*;
+
+import java.util.stream.StreamSupport;
 
 @Component(immediate = true)
 public class OpticalBypassApp {
@@ -282,14 +283,11 @@ public class OpticalBypassApp {
     }
 
     private PortNumber getConnectingPort(DeviceId srcDeviceId, DeviceId dstDeviceId) {
-        for (Link link : linkService.getDeviceLinks(srcDeviceId)) {
-
-            if (link.dst().deviceId().equals(dstDeviceId)) {
-                return link.src().port(); // Return the source port of the link
-            }
-        }
-
-        return null; // Return null if no link is found
+        return linkService.getDeviceLinks(srcDeviceId).stream()
+                .filter(link -> link.dst().deviceId().equals(dstDeviceId))
+                .map(link -> link.src().port())
+                .findFirst()
+                .orElse(null); // Return null if no link matches
     }
 
     private PortNumber getHostFacingPort(DeviceId leafId, IpAddress hostIp) {
@@ -315,27 +313,19 @@ public class OpticalBypassApp {
     }
 
     private boolean isOpticalPathAvailable(DeviceId srcLeaf, DeviceId dstLeaf) {
-        // Get the connecting ports
+        // Get the ports connecting the optical spine to the leaves
         PortNumber spineToSrcPort = getConnectingPort(SPINE_OPTICAL, srcLeaf);
         PortNumber spineToDstPort = getConnectingPort(SPINE_OPTICAL, dstLeaf);
 
-        // Check if these ports are already in use by any existing flows
-        for (FlowEntry flow : flowRuleService.getFlowEntries(SPINE_OPTICAL)) {
-            TrafficTreatment treatment = flow.treatment();
-
-            for (Instruction instruction : treatment.allInstructions()) {
-                if (instruction instanceof Instructions.OutputInstruction) {
-                    PortNumber outputPort = ((Instructions.OutputInstruction) instruction).port();
-
-                    // Check if the port is already in use
-                    if (outputPort.equals(spineToSrcPort) || outputPort.equals(spineToDstPort)) {
-                        return false;
-                    }
-                }
-            }
+        if (spineToSrcPort == null || spineToDstPort == null) {
+            return false; // Path doesn't exist
         }
 
-        // If no conflicting ports are found, the path is available
-        return true;
+        // Check if these ports are used in existing flows
+        return StreamSupport.stream(flowRuleService.getFlowEntries(SPINE_OPTICAL).spliterator(), false)
+                .flatMap(flow -> flow.treatment().allInstructions().stream())
+                .filter(instruction -> instruction instanceof Instructions.OutputInstruction)
+                .map(instruction -> ((Instructions.OutputInstruction) instruction).port())
+                .noneMatch(port -> port.equals(spineToSrcPort) || port.equals(spineToDstPort));
     }
 }
