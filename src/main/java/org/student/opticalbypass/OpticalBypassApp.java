@@ -97,27 +97,19 @@ public class OpticalBypassApp {
         }
 
         private void handleIntraLeafTraffic(PacketContext context, Host srcHost, Host dstHost) {
+            // Match any flow between hosts - mirrors org.onosproject.fwd logic
             TrafficSelector selector = DefaultTrafficSelector.builder()
                     .matchInPort(srcHost.location().port())
                     .matchEthSrc(srcHost.mac())
                     .matchEthDst(dstHost.mac())
                     .build();
-            TrafficTreatment treatment = DefaultTrafficTreatment.builder()
-                    .setOutput(dstHost.location().port())
-                    .build();
-            FlowRule flowRule = DefaultFlowRule.builder()
-                    .forDevice(srcHost.location().deviceId())
-                    .withSelector(selector)
-                    .withTreatment(treatment)
-                    .withPriority(PRIORITY_LOCAL)
-                    .fromApp(appId)
-                    .makeTemporary(FLOW_TIMEOUT)
-                    .build();
-
+            TrafficTreatment treatment = createTreatment(dstHost.location().port());
+            FlowRule flowRule = createFlowRule(srcHost.location().deviceId(), selector, treatment, PRIORITY_LOCAL);
+        
             flowRuleService.applyFlowRules(flowRule);
             context.treatmentBuilder().setOutput(dstHost.location().port());
             context.send();
-        }
+        }        
 
         private void HandleInterLeafTraffic(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf) {
             if (isEligibleForOpticalPath(context) && isOpticalPathAvailable(srcLeaf, dstLeaf)) {
@@ -129,106 +121,54 @@ public class OpticalBypassApp {
     }
 
     private void routeViaSpine(PacketContext context, DeviceId srcLeaf, DeviceId dstLeaf, DeviceId spineDeviceId, int priority) {
-        // Parse Ethernet frame and payload (IPv4 packet)
         Ethernet ethPkt = context.inPacket().parsed();
         IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
-
-        // Get the ports in the circuit
+    
         PortNumber srcLeafUplink = getConnectingPort(srcLeaf, spineDeviceId);
         PortNumber spineToDestPort = getConnectingPort(spineDeviceId, dstLeaf);
         PortNumber dstLeafDownlink = getHostFacingPort(dstLeaf, IpAddress.valueOf(ipv4Pkt.getDestinationAddress()));
-
+    
         PortNumber dstLeafUplink = getConnectingPort(dstLeaf, spineDeviceId);
         PortNumber spineToSrcPort = getConnectingPort(spineDeviceId, srcLeaf);
         PortNumber srcLeafDownlink = getHostFacingPort(srcLeaf, IpAddress.valueOf(ipv4Pkt.getSourceAddress()));
-
-        // Important!: Selectors need to be able to differentiate flows matching optical criteria
-        // E.g. if isEligibleForOpticalPath should use 5001/UDP, a UDP match case needs to be added here!
+    
         TrafficSelector forwardSelector = createForwardSelector(ethPkt, ipv4Pkt);
         TrafficSelector reverseSelector = createReverseSelector(ethPkt, ipv4Pkt);
-
-        // Create port-based treatments for forward paths
-        TrafficTreatment forwardTreatmentSrcLeaf = DefaultTrafficTreatment.builder()
-                .setOutput(srcLeafUplink)
-                .build();
-        TrafficTreatment forwardTreatmentSpine = DefaultTrafficTreatment.builder()
-                .setOutput(spineToDestPort)
-                .build();
-        TrafficTreatment forwardTreatmentDstLeaf = DefaultTrafficTreatment.builder()
-                .setOutput(dstLeafDownlink)
-                .build();
-
-        // Create port-based treatments for reverse paths
-        TrafficTreatment reverseTreatmentDstLeaf = DefaultTrafficTreatment.builder()
-                .setOutput(dstLeafUplink)
-                .build();
-        TrafficTreatment reverseTreatmentSpine = DefaultTrafficTreatment.builder()
-                .setOutput(spineToSrcPort)
-                .build();
-        TrafficTreatment reverseTreatmentSrcLeaf = DefaultTrafficTreatment.builder()
-                .setOutput(srcLeafDownlink)
-                .build();
-
-        // Create flow rules for forward path
-        FlowRule forwardFlowRuleSrcLeaf = DefaultFlowRule.builder()
-                .fromApp(appId)
-                .forDevice(srcLeaf)
-                .withSelector(forwardSelector)
-                .withTreatment(forwardTreatmentSrcLeaf)
-                .withPriority(priority)
-                .makeTemporary(FLOW_TIMEOUT)
-                .build();
-        FlowRule forwardFlowRuleSpine = DefaultFlowRule.builder()
-                .fromApp(appId)
-                .forDevice(spineDeviceId)
-                .withSelector(forwardSelector)
-                .withTreatment(forwardTreatmentSpine)
-                .withPriority(priority)
-                .makeTemporary(FLOW_TIMEOUT)
-                .build();
-        FlowRule forwardFlowRuleDstLeaf = DefaultFlowRule.builder()
-                .fromApp(appId)
-                .forDevice(dstLeaf)
-                .withSelector(forwardSelector)
-                .withTreatment(forwardTreatmentDstLeaf)
-                .withPriority(priority)
-                .makeTemporary(FLOW_TIMEOUT)
-                .build();
-
-        // Create flow rules for reverse path
-        FlowRule reverseFlowRuleDstLeaf = DefaultFlowRule.builder()
-                .fromApp(appId)
-                .forDevice(dstLeaf)
-                .withSelector(reverseSelector)
-                .withTreatment(reverseTreatmentDstLeaf)
-                .withPriority(priority)
-                .makeTemporary(FLOW_TIMEOUT)
-                .build();
-        FlowRule reverseFlowRuleSpine = DefaultFlowRule.builder()
-                .fromApp(appId)
-                .forDevice(spineDeviceId)
-                .withSelector(reverseSelector)
-                .withTreatment(reverseTreatmentSpine)
-                .withPriority(priority)
-                .makeTemporary(FLOW_TIMEOUT)
-                .build();
-        FlowRule reverseFlowRuleSrcLeaf = DefaultFlowRule.builder()
-                .fromApp(appId)
-                .forDevice(srcLeaf)
-                .withSelector(reverseSelector)
-                .withTreatment(reverseTreatmentSrcLeaf)
-                .withPriority(priority)
-                .makeTemporary(FLOW_TIMEOUT)
-                .build();
-
-        // Apply all flow rules for forward and reverse paths
+    
+        // Create flow rules using helpers
+        FlowRule forwardFlowRuleSrcLeaf = createFlowRule(srcLeaf, forwardSelector, createTreatment(srcLeafUplink), priority);
+        FlowRule forwardFlowRuleSpine = createFlowRule(spineDeviceId, forwardSelector, createTreatment(spineToDestPort), priority);
+        FlowRule forwardFlowRuleDstLeaf = createFlowRule(dstLeaf, forwardSelector, createTreatment(dstLeafDownlink), priority);
+    
+        FlowRule reverseFlowRuleDstLeaf = createFlowRule(dstLeaf, reverseSelector, createTreatment(dstLeafUplink), priority);
+        FlowRule reverseFlowRuleSpine = createFlowRule(spineDeviceId, reverseSelector, createTreatment(spineToSrcPort), priority);
+        FlowRule reverseFlowRuleSrcLeaf = createFlowRule(srcLeaf, reverseSelector, createTreatment(srcLeafDownlink), priority);
+    
+        // Apply all flow rules
         flowRuleService.applyFlowRules(forwardFlowRuleSrcLeaf, forwardFlowRuleSpine, forwardFlowRuleDstLeaf,
-                reverseFlowRuleDstLeaf, reverseFlowRuleSpine, reverseFlowRuleSrcLeaf);
-
-        // Send the initial packet on the forward path
+                                       reverseFlowRuleDstLeaf, reverseFlowRuleSpine, reverseFlowRuleSrcLeaf);
+    
+        // Send the packet
         context.treatmentBuilder().setOutput(srcLeafUplink);
         context.send();
     }
+
+    private TrafficTreatment createTreatment(PortNumber outputPort) {
+        return DefaultTrafficTreatment.builder()
+                .setOutput(outputPort)
+                .build();
+    }
+
+    private FlowRule createFlowRule(DeviceId deviceId, TrafficSelector selector, TrafficTreatment treatment, int priority) {
+        return DefaultFlowRule.builder()
+                .forDevice(deviceId)
+                .withSelector(selector)
+                .withTreatment(treatment)
+                .withPriority(priority)
+                .fromApp(appId)
+                .makeTemporary(FLOW_TIMEOUT)
+                .build();
+    }    
 
     private TrafficSelector createForwardSelector(Ethernet ethPkt, IPv4 ipv4Pkt) {
         switch (ipv4Pkt.getProtocol()) {
@@ -287,7 +227,7 @@ public class OpticalBypassApp {
                 .filter(link -> link.dst().deviceId().equals(dstDeviceId))
                 .map(link -> link.src().port())
                 .findFirst()
-                .orElse(null); // Return null if no link matches
+                .orElse(null); // Return null if no matches
     }
 
     private PortNumber getHostFacingPort(DeviceId leafId, IpAddress hostIp) {
@@ -295,7 +235,7 @@ public class OpticalBypassApp {
                 .filter(host -> host.location().deviceId().equals(leafId))
                 .map(host -> host.location().port())
                 .findFirst()
-                .orElse(null);
+                .orElse(null); // Return null if no matches
     }
 
     private boolean isEligibleForOpticalPath(PacketContext context) {
