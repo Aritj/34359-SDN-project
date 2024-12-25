@@ -171,6 +171,7 @@ public class OpticalBypassApp {
     }    
 
     private TrafficSelector createForwardSelector(Ethernet ethPkt, IPv4 ipv4Pkt) {
+        // Using switch to support future protocol cases like UDP
         switch (ipv4Pkt.getProtocol()) {
             case IPv4.PROTOCOL_TCP:
                 TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
@@ -197,6 +198,7 @@ public class OpticalBypassApp {
     }
     
     private TrafficSelector createReverseSelector(Ethernet ethPkt, IPv4 ipv4Pkt) {
+        // Using switch to support future protocol cases like UDP
         switch (ipv4Pkt.getProtocol()) {
             case IPv4.PROTOCOL_TCP:
                 TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
