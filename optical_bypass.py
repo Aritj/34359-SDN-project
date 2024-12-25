@@ -24,7 +24,7 @@ def main(leaf_switch_count = 4, hosts_per_leaf_count = 4):
     e_spine = net.addSwitch('s{}'.format(leaf_switch_count+1), protocols='OpenFlow13')
     o_spine = net.addSwitch('s{}'.format(leaf_switch_count+2), protocols='OpenFlow13')
 
-    # Create and link each leaf switch to both spine switches
+    # Create leaf switches and links to both spine switches
     for leaf_index in range(1, leaf_switch_count + 1):
         leaf = net.addSwitch('s{}'.format(leaf_index), protocols='OpenFlow13')
 
