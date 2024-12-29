@@ -1,41 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Diagram>
   <ID>JAVA</ID>
-  <OriginalElement>org.student.opticalbypass.OpticalBypassApp</OriginalElement>
+  <OriginalElement>org.student.opticalbypass</OriginalElement>
   <nodes>
-    <node x="76.0" y="0.0">org.osgi.service.component.annotations</node>
-    <node x="129.0" y="101.0">org.student.opticalbypass.OpticalBypassApp</node>
-    <node x="0.0" y="563.0">org.student.opticalbypass.OpticalBypassApp.OpticalBypassPacketProcessor</node>
+    <node x="129.0" y="0.0">org.student.opticalbypass.OpticalBypassApp</node>
+    <node x="0.0" y="462.0">org.student.opticalbypass.OpticalBypassApp.OpticalBypassPacketProcessor</node>
   </nodes>
   <notes />
   <edges>
     <edge source="org.student.opticalbypass.OpticalBypassApp" target="org.student.opticalbypass.OpticalBypassApp.OpticalBypassPacketProcessor">
       <point x="88.66666666666669" y="206.0" />
-      <point x="350.6666666666667" y="538.0" />
-      <point x="436.66666666666663" y="538.0" />
+      <point x="350.6666666666667" y="437.0" />
+      <point x="436.66666666666663" y="437.0" />
       <point x="174.66666666666663" y="-159.5" />
     </edge>
     <edge source="org.student.opticalbypass.OpticalBypassApp.OpticalBypassPacketProcessor" target="org.student.opticalbypass.OpticalBypassApp">
       <point x="-174.66666666666663" y="-159.5" />
-      <point x="87.33333333333337" y="538.0" />
-      <point x="173.33333333333331" y="538.0" />
+      <point x="87.33333333333337" y="437.0" />
+      <point x="173.33333333333331" y="437.0" />
       <point x="-88.66666666666669" y="206.0" />
     </edge>
-    <edge source="org.student.opticalbypass.OpticalBypassApp" target="org.osgi.service.component.annotations">
-      <point x="66.5" y="-206.0" />
-      <point x="328.5" y="81.0" />
-      <point x="308.5" y="81.0" />
-      <point x="93.0" y="20.5" />
-    </edge>
-    <edge source="org.osgi.service.component.annotations" target="org.osgi.service.component.annotations">
-      <point x="-93.0" y="20.5" />
-      <point x="122.5" y="61.0" />
-      <point x="56.0" y="61.0" />
-      <point x="56.0" y="20.5" />
-      <point x="-139.5" y="-0.0" />
-    </edge>
   </edges>
-  <settings layout="Hierarchic Group" zoom="0.5232815964523282" x="262.0" y="441.0" />
+  <settings layout="Hierarchic Group" zoom="0.5892634207240949" x="262.0" y="390.5" />
   <SelectedNodes />
   <Categories>
     <Category>Fields</Category>
