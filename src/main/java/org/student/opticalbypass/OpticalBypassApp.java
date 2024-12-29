@@ -18,7 +18,6 @@ import java.util.stream.StreamSupport;
 public class OpticalBypassApp {
     private final PacketProcessor packetProcessor = new OpticalBypassPacketProcessor();
 
-    // Naming "magic numbers" for better code documentation
     private static final int IPERF_TCP_PORT = 5001;
     private static final int ELECTRICAL_PRIORITY = 10;
     private static final int OPTICAL_PRIORITY = 20;
@@ -80,13 +79,11 @@ public class OpticalBypassApp {
             // Parse ethernet packet
             Ethernet ethPkt = context.inPacket().parsed();
 
-            if (ethPkt.getEtherType() == Ethernet.TYPE_ARP) return; // ARP hasn't resolved yet
-
             // Get source and destination hosts
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
 
-            //if (srcHost == null || dstHost == null) return; // ARP hasn't resolved yet
+            if (srcHost == null || dstHost == null) return; // ARP hasn't resolved yet
 
             // Get source and destination leaf(s)
             DeviceId srcLeaf = srcHost.location().deviceId();
