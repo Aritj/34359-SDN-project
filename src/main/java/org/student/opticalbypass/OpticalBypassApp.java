@@ -186,7 +186,6 @@ public class OpticalBypassApp {
             IpAddress dstIp = isForward ? IpAddress.valueOf(ipv4Pkt.getDestinationAddress()) : IpAddress.valueOf(ipv4Pkt.getSourceAddress());
         
             Builder selectorBuilder = DefaultTrafficSelector.builder()
-                    .matchEthType(Ethernet.TYPE_IPV4)
                     .matchEthSrc(srcMac)
                     .matchEthDst(dstMac)
                     .matchIPSrc(IpPrefix.valueOf(srcIp, 32))
