@@ -44,6 +44,7 @@ public class OpticalBypassApp {
     protected void activate() {
         appId = coreService.registerApplication("org.student.opticalbypass");
         
+        // Avoid hardcoding the number of leafs, as this value can be changed in the python file.
         int deviceCount = deviceService.getDeviceCount();
         SPINE_ELECTRICAL = DeviceId.deviceId(String.format("of:%016x", deviceCount-1));
         SPINE_OPTICAL = DeviceId.deviceId(String.format("of:%016x", deviceCount));
@@ -77,7 +78,7 @@ public class OpticalBypassApp {
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
 
-            if (srcHost == null || dstHost == null) return;
+            if (srcHost == null || dstHost == null) return; // Wait until ARP resolves
 
             // Get source and destination leaf(s)
             DeviceId srcLeaf = srcHost.location().deviceId();
@@ -91,16 +92,14 @@ public class OpticalBypassApp {
         }
 
         private void handleIntraLeafTraffic(PacketContext context, Host srcHost, Host dstHost) {
-            int PRIORITY_LOCAL = 30;
-            
-            // Match any flow between hosts - mirrors org.onosproject.fwd logic
+            // Match any flow between hosts (mirrors org.onosproject.fwd logic)
             TrafficSelector selector = DefaultTrafficSelector.builder()
                     .matchInPort(srcHost.location().port())
                     .matchEthSrc(srcHost.mac())
                     .matchEthDst(dstHost.mac())
                     .build();
             TrafficTreatment treatment = createTreatment(dstHost.location().port());
-            FlowRule flowRule = createFlowRule(srcHost.location().deviceId(), selector, treatment, PRIORITY_LOCAL);
+            FlowRule flowRule = createFlowRule(srcHost.location().deviceId(), selector, treatment, 30);
         
             flowRuleService.applyFlowRules(flowRule);
             context.treatmentBuilder().setOutput(dstHost.location().port());
@@ -119,22 +118,26 @@ public class OpticalBypassApp {
             Ethernet ethPkt = context.inPacket().parsed();
             IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
         
+            // Find forward path links
             PortNumber srcLeafUplink = getConnectingPort(srcLeaf, spineDeviceId);
             PortNumber spineToDestPort = getConnectingPort(spineDeviceId, dstLeaf);
             PortNumber dstLeafDownlink = getHostFacingPort(dstLeaf, IpAddress.valueOf(ipv4Pkt.getDestinationAddress()));
         
+            // Find reverse path links
             PortNumber dstLeafUplink = getConnectingPort(dstLeaf, spineDeviceId);
             PortNumber spineToSrcPort = getConnectingPort(spineDeviceId, srcLeaf);
             PortNumber srcLeafDownlink = getHostFacingPort(srcLeaf, IpAddress.valueOf(ipv4Pkt.getSourceAddress()));
         
-            TrafficSelector forwardSelector = createTrafficSelector(ethPkt, ipv4Pkt, true);
-            TrafficSelector reverseSelector = createTrafficSelector(ethPkt, ipv4Pkt, false);
+            // Forward and reverse traffic selectors
+            TrafficSelector forwardSelector = createInterLeafTrafficSelector(ethPkt, ipv4Pkt, true);
+            TrafficSelector reverseSelector = createInterLeafTrafficSelector(ethPkt, ipv4Pkt, false);
         
-            // Create flow rules using helpers
+            // Forward FlowRules
             FlowRule forwardFlowRuleSrcLeaf = createFlowRule(srcLeaf, forwardSelector, createTreatment(srcLeafUplink), priority);
             FlowRule forwardFlowRuleSpine = createFlowRule(spineDeviceId, forwardSelector, createTreatment(spineToDestPort), priority);
             FlowRule forwardFlowRuleDstLeaf = createFlowRule(dstLeaf, forwardSelector, createTreatment(dstLeafDownlink), priority);
         
+            // Reverse FlowRules
             FlowRule reverseFlowRuleDstLeaf = createFlowRule(dstLeaf, reverseSelector, createTreatment(dstLeafUplink), priority);
             FlowRule reverseFlowRuleSpine = createFlowRule(spineDeviceId, reverseSelector, createTreatment(spineToSrcPort), priority);
             FlowRule reverseFlowRuleSrcLeaf = createFlowRule(srcLeaf, reverseSelector, createTreatment(srcLeafDownlink), priority);
@@ -165,7 +168,7 @@ public class OpticalBypassApp {
                     .build();
         }
 
-        private TrafficSelector createTrafficSelector(Ethernet ethPkt, IPv4 ipv4Pkt, boolean isForward) {
+        private TrafficSelector createInterLeafTrafficSelector(Ethernet ethPkt, IPv4 ipv4Pkt, boolean isForward) {
             MacAddress srcMac = isForward ? ethPkt.getSourceMAC() : ethPkt.getDestinationMAC();
             MacAddress dstMac = isForward ? ethPkt.getDestinationMAC() : ethPkt.getSourceMAC();
             IpAddress srcIp = isForward ? IpAddress.valueOf(ipv4Pkt.getSourceAddress()) : IpAddress.valueOf(ipv4Pkt.getDestinationAddress());
@@ -181,9 +184,12 @@ public class OpticalBypassApp {
         
             if (ipv4Pkt.getProtocol() == IPv4.PROTOCOL_TCP) {
                 TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
-                selectorBuilder.matchTcpSrc(TpPort.tpPort(isForward ? tcpPkt.getSourcePort() : tcpPkt.getDestinationPort()))
-                               .matchTcpDst(TpPort.tpPort(isForward ? tcpPkt.getDestinationPort() : tcpPkt.getSourcePort()));
+                TpPort srcPort = TpPort.tpPort(isForward ? tcpPkt.getSourcePort() : tcpPkt.getDestinationPort());
+                TpPort dstPort = TpPort.tpPort(isForward ? tcpPkt.getDestinationPort() : tcpPkt.getSourcePort());
+
+                selectorBuilder.matchTcpSrc(srcPort).matchTcpDst(dstPort);
             }
+
             return selectorBuilder.build();
         }
             
