@@ -228,9 +228,7 @@ public class OpticalBypassApp {
             IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
     
             // Check if its 5001/TCP (iPerf traffic)
-            return ipv4Pkt.getProtocol() == IPv4.PROTOCOL_TCP
-                ? ((TCP) ipv4Pkt.getPayload()).getDestinationPort() == IPERF_TCP_PORT
-                : false;
+            return ipv4Pkt.getProtocol() == IPv4.PROTOCOL_TCP && ((TCP) ipv4Pkt.getPayload()).getDestinationPort() == IPERF_TCP_PORT;
         }
     
         private boolean isOpticalPathAvailable(DeviceId srcLeaf, DeviceId dstLeaf) {
