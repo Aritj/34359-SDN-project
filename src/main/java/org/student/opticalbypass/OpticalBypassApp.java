@@ -80,11 +80,13 @@ public class OpticalBypassApp {
             // Parse ethernet packet
             Ethernet ethPkt = context.inPacket().parsed();
 
+            if (ethPkt.getEtherType() == Ethernet.TYPE_ARP) return; // ARP hasn't resolved yet
+
             // Get source and destination hosts
             Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
             Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
 
-            if (srcHost == null || dstHost == null) return; // ARP hasn't resolved yet
+            //if (srcHost == null || dstHost == null) return; // ARP hasn't resolved yet
 
             // Get source and destination leaf(s)
             DeviceId srcLeaf = srcHost.location().deviceId();
@@ -179,8 +181,6 @@ public class OpticalBypassApp {
                     .matchEthDst(dstHost.mac())
                     .build();
         }
-
-
 
         private TrafficSelector createInterLeafTrafficSelector(Ethernet ethPkt, IPv4 ipv4Pkt, boolean isForward) {
             MacAddress srcMac = isForward ? ethPkt.getSourceMAC() : ethPkt.getDestinationMAC();
