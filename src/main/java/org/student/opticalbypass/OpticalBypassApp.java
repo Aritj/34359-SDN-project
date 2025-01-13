@@ -200,7 +200,7 @@ public class OpticalBypassApp {
                     : IpAddress.valueOf(ipv4Pkt.getSourceAddress());
 
             Builder selectorBuilder = DefaultTrafficSelector.builder()
-                    .matEthType(Ethernet.TYPE_IPV4)
+                    .matchEthType(Ethernet.TYPE_IPV4)
                     .matchEthSrc(srcMac)
                     .matchEthDst(dstMac)
                     .matchIPSrc(IpPrefix.valueOf(srcIp, 32))
